@@ -1,28 +1,58 @@
-import { useState, useCallback } from 'react';
-import { CUSTOM_THEMES, DATA } from './data.js';
+import { useState, useCallback, useEffect } from 'react';
+import { CUSTOM_THEMES, loadUserThemes, saveUserThemes } from './data.js';
 import ThemeRanked from './components/ThemeRanked.jsx';
 import ThemeDetail from './components/ThemeDetail.jsx';
 import ThemeScatter from './components/ThemeScatter.jsx';
 import ThemeDeepDive from './components/ThemeDeepDive.jsx';
+import ThemeBuilder from './components/ThemeBuilder.jsx';
+import ScenarioPortfolio from './components/ScenarioPortfolio.jsx';
+import PatchingPrioritization from './components/PatchingPrioritization.jsx';
 import './styles.css';
 
 const TABS = [
+  { key: 'portfolio', label: 'Scenario portfolio' },
+  { key: 'builder', label: 'Theme builder' },
   { key: 'ranked', label: 'Themes ranked' },
-  { key: 'detail', label: 'Theme detail' },
   { key: 'scatter', label: 'Risk matrix' },
+  { key: 'detail', label: 'Theme detail' },
   { key: 'deepdive', label: 'Deep dive' },
+  { key: 'patching', label: 'Patching prioritization' },
 ];
 
 export default function App() {
   const [tab, setTab] = useState('ranked');
   const [selectedTheme, setSelectedTheme] = useState('Ransomware & Extortion');
-  const [activeCustomThemes, setActiveCustomThemes] = useState([
-    'Ransomware & Extortion',
-    'Third Party / Supply Chain',
-    'Phishing & Social Engineering',
-    'Critical Data Exposure',
-    'Identity & Credential Exploitation',
-  ]);
+  const [activeCustomThemes, setActiveCustomThemes] = useState(
+    Object.keys(CUSTOM_THEMES)
+  );
+
+  // User-created themes with localStorage persistence
+  const [userThemes, setUserThemes] = useState(() => loadUserThemes());
+
+  useEffect(() => {
+    saveUserThemes(userThemes);
+  }, [userThemes]);
+
+  const handleSaveUserTheme = useCallback((theme) => {
+    setUserThemes(prev => {
+      const existing = prev.findIndex(t => t.id === theme.id);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = theme;
+        return updated;
+      }
+      return [...prev, theme];
+    });
+  }, []);
+
+  const handleRemoveUserTheme = useCallback((id) => {
+    setUserThemes(prev => prev.filter(t => t.id !== id));
+    // Clean up references
+    setActiveCustomThemes(prev => {
+      const theme = userThemes.find(t => t.id === id);
+      return theme ? prev.filter(n => n !== theme.name) : prev;
+    });
+  }, [userThemes]);
 
   const navigateToTheme = useCallback((themeName, targetTab = 'detail') => {
     setSelectedTheme(themeName);
@@ -61,11 +91,18 @@ export default function App() {
             onChange={e => setSelectedTheme(e.target.value)}
             className="theme-dropdown"
           >
-            <optgroup label="Custom themes">
+            <optgroup label="Built-in themes">
               {Object.keys(CUSTOM_THEMES).map(n => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </optgroup>
+            {userThemes.length > 0 && (
+              <optgroup label="Your themes">
+                {userThemes.map(t => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
       </nav>
@@ -76,23 +113,41 @@ export default function App() {
             activeCustomThemes={activeCustomThemes}
             setActiveCustomThemes={setActiveCustomThemes}
             onThemeClick={navigateToTheme}
+            userThemes={userThemes}
           />
         )}
         {tab === 'detail' && (
           <ThemeDetail
             themeName={selectedTheme}
             onDeepDive={() => setTab('deepdive')}
+            userThemes={userThemes}
           />
         )}
         {tab === 'scatter' && (
           <ThemeScatter
             activeCustomThemes={activeCustomThemes}
             onThemeClick={navigateToTheme}
+            userThemes={userThemes}
           />
         )}
         {tab === 'deepdive' && (
           <ThemeDeepDive
             themeName={selectedTheme}
+            userThemes={userThemes}
+          />
+        )}
+        {tab === 'portfolio' && (
+          <ScenarioPortfolio />
+        )}
+        {tab === 'patching' && (
+          <PatchingPrioritization userThemes={userThemes} />
+        )}
+        {tab === 'builder' && (
+          <ThemeBuilder
+            userThemes={userThemes}
+            onSave={handleSaveUserTheme}
+            onRemove={handleRemoveUserTheme}
+            onNavigate={navigateToTheme}
           />
         )}
       </main>

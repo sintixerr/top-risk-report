@@ -91,8 +91,8 @@ function DriverSection({ title, items, maxItems, colorClass, scenarioCount, show
   );
 }
 
-export default function ThemeDeepDive({ themeName }) {
-  const scenarios = useMemo(() => getThemeScenarios(themeName), [themeName]);
+export default function ThemeDeepDive({ themeName, userThemes = [] }) {
+  const scenarios = useMemo(() => getThemeScenarios(themeName, userThemes), [themeName, userThemes]);
 
   const objectives = useMemo(() => countAcross(scenarios, 'objectives'), [scenarios]);
   const weaknesses = useMemo(() => countAcross(scenarios, 'weaknesses'), [scenarios]);

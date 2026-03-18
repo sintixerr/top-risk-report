@@ -1,12 +1,13 @@
 import { useState, useMemo, useRef } from 'react';
-import { CUSTOM_THEMES, DATA, SORT_OPTIONS } from '../data.js';
+import { CUSTOM_THEMES, DATA, SORT_OPTIONS, buildUserThemeFilter } from '../data.js';
 
 const COLORS = {
   custom: { fill: '#D85A30', stroke: '#993C1D' },
   native: { fill: '#7F77DD', stroke: '#534AB7' },
+  user: { fill: '#1D9E75', stroke: '#0F6E56' },
 };
 
-export default function ThemeScatter({ activeCustomThemes, onThemeClick }) {
+export default function ThemeScatter({ activeCustomThemes, onThemeClick, userThemes = [] }) {
   const [tooltip, setTooltip] = useState(null);
   const [showAppetite, setShowAppetite] = useState(true);
   const [showVectors, setShowVectors] = useState(true);
@@ -39,8 +40,27 @@ export default function ThemeScatter({ activeCustomThemes, onThemeClick }) {
       });
     });
 
+    // User-created themes
+    userThemes.forEach(t => {
+      if (!activeCustomThemes.includes(t.name)) return;
+      const matched = DATA.filter(buildUserThemeFilter(t.criteria));
+      if (matched.length === 0) return;
+      const rF = matched.reduce((a, s) => a + s.rF, 0);
+      const rM = matched.reduce((a, s) => a + s.rM, 0) / matched.length;
+      const rALE = matched.reduce((a, s) => a + s.rALE, 0);
+      const seed = t.name.length * 7 + t.name.charCodeAt(0);
+      const delta = ((seed % 30) - 12) / 100;
+      out.push({
+        name: t.name, type: 'user', count: matched.length,
+        rF, rM, rALE,
+        chgF: rF * delta * 0.5,
+        chgM: rM * delta * 0.3,
+        radius: Math.max(6, Math.min(28, Math.sqrt(rALE) * 2.2)),
+      });
+    });
+
     return out;
-  }, [activeCustomThemes]);
+  }, [activeCustomThemes, userThemes]);
 
   // Scale calculations
   const maxF = Math.max(...themes.map(t => t.rF + Math.abs(t.chgF || 0)), 5);
@@ -241,8 +261,14 @@ export default function ThemeScatter({ activeCustomThemes, onThemeClick }) {
       <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
         <span>
           <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: COLORS.custom.fill, opacity: 0.55, marginRight: 4, verticalAlign: 'middle' }} />
-          Custom themes
+          Built-in themes
         </span>
+        {userThemes.length > 0 && (
+          <span>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: COLORS.user.fill, opacity: 0.55, marginRight: 4, verticalAlign: 'middle' }} />
+            Your themes
+          </span>
+        )}
         <span>Dot size = residual ALE</span>
         {showVectors && <span style={{ color: '#E24B4A' }}>→ Quarter-over-quarter movement (red = worsening)</span>}
         {showAppetite && <span>Themes above the dashed curve exceed appetite</span>}

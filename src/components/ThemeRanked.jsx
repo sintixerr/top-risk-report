@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { DIMENSIONS, CUSTOM_THEMES, SORT_OPTIONS, DATA, buildDimensionData } from '../data.js';
+import { DIMENSIONS, CUSTOM_THEMES, SORT_OPTIONS, DATA, buildDimensionData, buildUserThemeFilter } from '../data.js';
 
 const ALL_DIM_LABELS = {
   controls: 'Control objectives',
@@ -10,10 +10,10 @@ const ALL_DIM_LABELS = {
   custom: 'Custom themes',
 };
 
-function RankedPanel({ title, dimKey, sortKey, showChg, sortFmt, activeCustomThemes, onThemeClick }) {
+function RankedPanel({ title, dimKey, sortKey, showChg, sortFmt, activeCustomThemes, onThemeClick, userThemes }) {
   const rows = useMemo(
-    () => buildDimensionData(dimKey, sortKey, showChg, activeCustomThemes),
-    [dimKey, sortKey, showChg, activeCustomThemes]
+    () => buildDimensionData(dimKey, sortKey, showChg, activeCustomThemes, userThemes),
+    [dimKey, sortKey, showChg, activeCustomThemes, userThemes]
   );
   const maxVal = Math.max(...rows.map(r => Math.abs(r.val)), 0.01);
   const [expanded, setExpanded] = useState(null);
@@ -108,8 +108,8 @@ function RankedPanel({ title, dimKey, sortKey, showChg, sortFmt, activeCustomThe
   );
 }
 
-export default function ThemeRanked({ activeCustomThemes, setActiveCustomThemes, onThemeClick }) {
-  const [activeDims, setActiveDims] = useState(['controls', 'ttps', 'weaknesses', 'custom']);
+export default function ThemeRanked({ activeCustomThemes, setActiveCustomThemes, onThemeClick, userThemes = [] }) {
+  const [activeDims, setActiveDims] = useState(['custom']);
   const [sortKey, setSortKey] = useState('rALE');
   const [showChg, setShowChg] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -205,6 +205,30 @@ export default function ThemeRanked({ activeCustomThemes, setActiveCustomThemes,
                   </label>
                 );
               })}
+              {userThemes.length > 0 && (
+                <>
+                  <div style={{ borderTop: '1px solid var(--border-light)', margin: '6px 0', paddingTop: 6 }}>
+                    <span style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 600 }}>Your themes</span>
+                  </div>
+                  {userThemes.map(t => {
+                    const count = DATA.filter(buildUserThemeFilter(t.criteria)).length;
+                    return (
+                      <label
+                        key={t.id}
+                        className={`picker-label ${activeCustomThemes.includes(t.name) ? 'picker-label-active' : 'picker-label-inactive'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={activeCustomThemes.includes(t.name)}
+                          onChange={() => toggleCustom(t.name)}
+                        />
+                        <span style={{ flex: 1 }}>{t.name}</span>
+                        <span className="picker-count">{count}</span>
+                      </label>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -224,6 +248,7 @@ export default function ThemeRanked({ activeCustomThemes, setActiveCustomThemes,
             sortFmt={sortOpt.fmt}
             activeCustomThemes={activeCustomThemes}
             onThemeClick={onThemeClick}
+            userThemes={userThemes}
           />
         ))}
       </div>

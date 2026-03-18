@@ -305,15 +305,25 @@ export const DATA = SCENARIOS.map(s => ({
 }));
 
 // Build dimension ranking data
-export function buildDimensionData(dimKey, sortKey, showChg, activeCustomThemes) {
+export function buildDimensionData(dimKey, sortKey, showChg, activeCustomThemes, userThemes = []) {
   if (dimKey === "custom") {
-    return Object.entries(CUSTOM_THEMES)
+    // Built-in custom themes
+    const builtIn = Object.entries(CUSTOM_THEMES)
       .filter(([name]) => activeCustomThemes.includes(name))
       .map(([name, filterFn]) => {
         const matched = DATA.filter(filterFn);
         const val = matched.reduce((a, s) => a + (showChg ? s.chg[sortKey] : s[sortKey]), 0);
         return { name, val, count: matched.length, scenarios: matched };
-      })
+      });
+    // User-created themes
+    const userBuilt = userThemes
+      .filter(t => activeCustomThemes.includes(t.name))
+      .map(t => {
+        const matched = DATA.filter(buildUserThemeFilter(t.criteria));
+        const val = matched.reduce((a, s) => a + (showChg ? s.chg[sortKey] : s[sortKey]), 0);
+        return { name: t.name, val, count: matched.length, scenarios: matched };
+      });
+    return [...builtIn, ...userBuilt]
       .sort((a, b) => Math.abs(b.val) - Math.abs(a.val));
   }
   const dim = DIMENSIONS[dimKey];
@@ -334,8 +344,12 @@ export function buildDimensionData(dimKey, sortKey, showChg, activeCustomThemes)
     .slice(0, 10);
 }
 
-// Get scenarios for a theme
-export function getThemeScenarios(themeName) {
+// Get scenarios for a theme (checks user-created themes too)
+export function getThemeScenarios(themeName, userThemes = []) {
+  // Check user-created themes first
+  const userTheme = userThemes.find(t => t.name === themeName);
+  if (userTheme) return DATA.filter(buildUserThemeFilter(userTheme.criteria));
+  // Check hardcoded custom themes
   const customFn = CUSTOM_THEMES[themeName];
   if (customFn) return DATA.filter(customFn);
   // Check native dimensions
@@ -345,4 +359,67 @@ export function getThemeScenarios(themeName) {
     if (matched.length > 0) return matched;
   }
   return [];
+}
+
+// ─── THEME BUILDER HELPERS ───
+
+// Extract all unique values per dimension from the 22 scenarios
+export function extractVocabulary() {
+  const vocab = {
+    ttps: new Set(),
+    weaknesses: new Set(),
+    objectives: new Set(),
+    assets: new Set(),
+    motiveObj: new Set(),
+  };
+  SCENARIOS.forEach(s => {
+    s.ttps.forEach(v => vocab.ttps.add(v));
+    s.weaknesses.forEach(v => vocab.weaknesses.add(v));
+    s.objectives.forEach(v => vocab.objectives.add(v));
+    (s.assets || []).forEach(v => vocab.assets.add(v));
+    vocab.motiveObj.add(s.motiveObj);
+  });
+  return {
+    ttps: [...vocab.ttps].sort(),
+    weaknesses: [...vocab.weaknesses].sort(),
+    objectives: [...vocab.objectives].sort(),
+    assets: [...vocab.assets].sort(),
+    motiveObj: [...vocab.motiveObj].sort(),
+  };
+}
+
+// Build a filter function from user theme criteria
+// criteria = { ttps: [...], weaknesses: [...], objectives: [...], assets: [...], motiveObj: [...] }
+// Within a dimension: OR (scenario has ANY of the selected values)
+// Across dimensions: AND (scenario must match ALL dimensions that have selections)
+export function buildUserThemeFilter(criteria) {
+  return (scenario) => {
+    for (const [dim, selected] of Object.entries(criteria)) {
+      if (!selected || selected.length === 0) continue; // "Any" = no filter
+      const scenarioValues = dim === 'motiveObj' ? [scenario.motiveObj] : (scenario[dim] || []);
+      const hasMatch = selected.some(v => scenarioValues.includes(v));
+      if (!hasMatch) return false;
+    }
+    return true;
+  };
+}
+
+// localStorage helpers for user-created themes
+const STORAGE_KEY = 'top-risk-report-user-themes';
+
+export function loadUserThemes() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveUserThemes(themes) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(themes));
+  } catch (e) {
+    console.error('Failed to save themes:', e);
+  }
 }

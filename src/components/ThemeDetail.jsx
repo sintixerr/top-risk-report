@@ -42,8 +42,8 @@ function GridPanel({ title, rows, isChange }) {
   );
 }
 
-export default function ThemeDetail({ themeName, onDeepDive }) {
-  const scenarios = useMemo(() => getThemeScenarios(themeName), [themeName]);
+export default function ThemeDetail({ themeName, onDeepDive, userThemes = [] }) {
+  const scenarios = useMemo(() => getThemeScenarios(themeName, userThemes), [themeName, userThemes]);
 
   const agg = useMemo(() => {
     if (scenarios.length === 0) return null;
