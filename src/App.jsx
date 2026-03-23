@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { CUSTOM_THEMES, loadUserThemes, saveUserThemes } from './data.js';
+import { loadUserCves, saveUserCves } from './cveModel.js';
 import Landing from './components/Landing.jsx';
 import ForecastDashboard from './components/ForecastDashboard.jsx';
 import ThemeRanked from './components/ThemeRanked.jsx';
@@ -16,17 +17,13 @@ import PerformanceReport from './components/PerformanceReport.jsx';
 import ActionQueue from './components/ActionQueue.jsx';
 import InvestmentComparison from './components/InvestmentComparison.jsx';
 import NewElementStub from './components/NewElementStub.jsx';
+import VulnerabilityAssessment from './components/VulnerabilityAssessment.jsx';
+import VulnerabilityQueue from './components/VulnerabilityQueue.jsx';
 import './styles.css';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// NAV STRUCTURE — Organized by the three decision types + analyst workbench
+// NAV STRUCTURE — Four dropdown menus
 // ═══════════════════════════════════════════════════════════════════════════
-//
-// The cascade: Type #1 → #2 → #3
-//   "What should we worry about?" → "What do we do first?" → "What new investment?"
-//
-// Hidden views (accessible via drill-down, not in nav):
-//   detail, deepdive, gaps, whatif, controls, newelement
 
 const TAB_GROUPS = [
   {
@@ -35,19 +32,20 @@ const TAB_GROUPS = [
     sublabel: 'What should we worry about?',
     color: 'var(--navy)',
     tabs: [
-      { key: 'forecast', label: 'Forecast' },
-      { key: 'ranked', label: 'Concentrations' },
-      { key: 'scatter', label: 'Landscape' },
+      { key: 'forecast', label: 'Forecast Summary', desc: 'Big-picture numbers, thresholds, escalation' },
+      { key: 'ranked', label: 'Concentrations', desc: 'Where risk accumulates — any dimension' },
+      { key: 'scatter', label: 'Landscape', desc: 'Likelihood vs. impact against tolerance' },
     ],
   },
   {
     key: 'priority',
-    label: 'Operational Priority',
+    label: 'Work Priority',
     sublabel: 'What do we do first?',
     color: '#1D9E75',
     tabs: [
-      { key: 'actions', label: 'Action Queue' },
-      { key: 'performance', label: 'Performance' },
+      { key: 'actions', label: 'Control Gaps', desc: 'Strategic: improve cycle quality' },
+      { key: 'vulnqueue', label: 'Vulnerabilities', desc: 'Tactical: remediate specific conditions' },
+      { key: 'performance', label: 'Performance', desc: 'Dimension × phase structural detail' },
     ],
   },
   {
@@ -56,8 +54,8 @@ const TAB_GROUPS = [
     sublabel: 'What new investment?',
     color: '#D85A30',
     tabs: [
-      { key: 'invest', label: 'Compare Options' },
-      { key: 'ctmatrix', label: 'Control Value' },
+      { key: 'invest', label: 'Compare Options', desc: 'Side-by-side investment scenarios' },
+      { key: 'ctmatrix', label: 'Control Value', desc: 'Cost efficiency of current controls' },
     ],
   },
   {
@@ -66,25 +64,136 @@ const TAB_GROUPS = [
     sublabel: '',
     color: '#8b5cf6',
     tabs: [
-      { key: 'portfolio', label: 'Scenarios' },
-      { key: 'builder', label: 'Theme Builder' },
+      { key: 'portfolio', label: 'Scenarios', desc: 'All 22 baseline scenarios' },
+      { key: 'builder', label: 'Theme Builder', desc: 'Custom risk themes from vocabulary' },
+      { key: 'cveassess', label: 'CVE Assessment', desc: 'Map new vulnerabilities to the model' },
     ],
   },
 ];
 
 const ALL_TABS = TAB_GROUPS.flatMap(g => g.tabs);
-
-// Views accessible via drill-down (not in nav)
 const HIDDEN_VIEWS = ['detail', 'deepdive', 'gaps', 'whatif', 'controls', 'newelement'];
+
+// ─── Dropdown Menu Component ───
+function NavDropdown({ group, currentTab, onSelect, openKey, setOpenKey }) {
+  const ref = useRef(null);
+  const isOpen = openKey === group.key;
+  const isActiveGroup = group.tabs.some(t => t.key === currentTab);
+  const activeTab = group.tabs.find(t => t.key === currentTab);
+
+  const toggle = () => setOpenKey(isOpen ? null : group.key);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpenKey(null);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen, setOpenKey]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={toggle}
+        style={{
+          fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
+          padding: '6px 14px', borderRadius: 3, cursor: 'pointer',
+          border: isActiveGroup ? `2px solid ${group.color}` : '1px solid var(--border)',
+          background: isActiveGroup ? `${group.color}0D` : 'var(--bg-card)',
+          color: isActiveGroup ? group.color : 'var(--text)',
+          display: 'flex', alignItems: 'center', gap: 6,
+          transition: 'all 0.12s', whiteSpace: 'nowrap',
+        }}
+        onMouseOver={e => { if (!isActiveGroup) e.currentTarget.style.borderColor = group.color; }}
+        onMouseOut={e => { if (!isActiveGroup) e.currentTarget.style.borderColor = 'var(--border)'; }}
+      >
+        <span>{group.label}</span>
+        {isActiveGroup && activeTab && (
+          <span style={{
+            fontSize: 9, opacity: 0.7, fontWeight: 400,
+          }}>
+            · {activeTab.label}
+          </span>
+        )}
+        <span style={{
+          fontSize: 8, transition: 'transform 0.15s',
+          transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
+          opacity: 0.5,
+        }}>▼</span>
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 4,
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderTop: `3px solid ${group.color}`,
+          borderRadius: '0 0 4px 4px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          zIndex: 100, minWidth: 240, overflow: 'hidden',
+        }}>
+          {group.sublabel && (
+            <div style={{
+              padding: '8px 14px 6px', fontFamily: 'var(--mono)', fontSize: 9,
+              color: group.color, fontWeight: 600, fontStyle: 'italic',
+              borderBottom: '1px solid var(--border-light)',
+            }}>
+              {group.sublabel}
+            </div>
+          )}
+          {group.tabs.map(t => {
+            const isCurrent = currentTab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => { onSelect(t.key); setOpenKey(null); }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '10px 14px', border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--mono)', transition: 'background 0.1s',
+                  background: isCurrent ? `${group.color}0D` : 'transparent',
+                  borderLeft: isCurrent ? `3px solid ${group.color}` : '3px solid transparent',
+                }}
+                onMouseOver={e => { if (!isCurrent) e.currentTarget.style.background = 'var(--bg-surface)'; }}
+                onMouseOut={e => { if (!isCurrent) e.currentTarget.style.background = isCurrent ? `${group.color}0D` : 'transparent'; }}
+              >
+                <div style={{
+                  fontSize: 11, fontWeight: isCurrent ? 700 : 500,
+                  color: isCurrent ? group.color : 'var(--text)',
+                }}>
+                  {t.label}
+                </div>
+                {t.desc && (
+                  <div style={{
+                    fontSize: 9, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4,
+                  }}>
+                    {t.desc}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════════════════
 
 export default function App() {
   const [tab, setTab] = useState('landing');
+  const [openDropdown, setOpenDropdown] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState('Ransomware & Extortion');
   const [activeCustomThemes, setActiveCustomThemes] = useState(
     Object.keys(CUSTOM_THEMES)
   );
   const [controlOverrides, setControlOverrides] = useState({});
   const [userThemes, setUserThemes] = useState(() => loadUserThemes());
+  const [userCves, setUserCves] = useState(() => loadUserCves());
+  const [performanceTarget, setPerformanceTarget] = useState(null);
 
   useEffect(() => {
     setActiveCustomThemes(prev => {
@@ -95,6 +204,7 @@ export default function App() {
   }, [userThemes]);
 
   useEffect(() => { saveUserThemes(userThemes); }, [userThemes]);
+  useEffect(() => { saveUserCves(userCves); }, [userCves]);
 
   const handleSaveUserTheme = useCallback((theme) => {
     setUserThemes(prev => {
@@ -121,9 +231,30 @@ export default function App() {
     });
   }, []);
 
+  const handleSaveCve = useCallback((cve) => {
+    setUserCves(prev => {
+      const existing = prev.findIndex(c => c.id === cve.id);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = cve;
+        return updated;
+      }
+      return [...prev, cve];
+    });
+  }, []);
+
+  const handleRemoveCve = useCallback((id) => {
+    setUserCves(prev => prev.filter(c => c.id !== id));
+  }, []);
+
   const navigateToTheme = useCallback((themeName, targetTab = 'detail') => {
     setSelectedTheme(themeName);
     setTab(targetTab);
+  }, []);
+
+  const navigateToPerformance = useCallback((target) => {
+    setPerformanceTarget(target);
+    setTab('performance');
   }, []);
 
   const activeGroup = TAB_GROUPS.find(g => g.tabs.some(t => t.key === tab));
@@ -151,37 +282,37 @@ export default function App() {
       </header>
       <div className="header-line" />
 
-      <nav className="nav-bar">
+      {/* ═══ DROPDOWN NAV BAR ═══ */}
+      <nav className="nav-bar" style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 20px',
+      }}>
         <button className={`nav-home ${isLanding ? 'nav-home-active' : ''}`}
           onClick={() => setTab('landing')} title="Decision cascade guide">◈</button>
 
         {TAB_GROUPS.map(group => (
-          <div key={group.key} className="nav-group">
-            <div className="nav-group-label" style={{ color: group.color }}>
-              {group.label}
-              {group.sublabel && (
-                <span style={{ fontWeight: 400, opacity: 0.6, marginLeft: 4, fontSize: 8 }}>
-                  {group.sublabel}
-                </span>
-              )}
-            </div>
-            <div className="nav-group-tabs">
-              {group.tabs.map(t => (
-                <button key={t.key}
-                  className={`nav-tab ${tab === t.key ? 'nav-tab-active' : ''}`}
-                  onClick={() => setTab(t.key)}
-                  style={tab === t.key ? { background: group.color, borderColor: group.color } : {}}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <NavDropdown
+            key={group.key}
+            group={group}
+            currentTab={tab}
+            onSelect={setTab}
+            openKey={openDropdown}
+            setOpenKey={setOpenDropdown}
+          />
         ))}
 
+        {/* Theme selector — appears when in theme-relevant views */}
         {themeViews.includes(tab) && (
-          <div className="nav-theme-select">
-            <span className="select-label">Theme</span>
-            <select value={selectedTheme} onChange={e => setSelectedTheme(e.target.value)} className="theme-dropdown">
+          <div style={{
+            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: 'var(--mono)',
+          }}>
+            <span style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Theme</span>
+            <select value={selectedTheme} onChange={e => setSelectedTheme(e.target.value)}
+              style={{
+                fontFamily: 'var(--mono)', fontSize: 11, padding: '5px 8px',
+                borderRadius: 2, border: '1px solid var(--border)', background: 'var(--bg-card)',
+              }}>
               <optgroup label="Built-in themes">
                 {Object.keys(CUSTOM_THEMES).map(n => <option key={n} value={n}>{n}</option>)}
               </optgroup>
@@ -205,10 +336,9 @@ export default function App() {
         }}>
           <span style={{ cursor: 'pointer', color: 'var(--navy)', fontWeight: 600 }}
             onClick={() => {
-              // Navigate back to the most sensible parent
               if (tab === 'detail' || tab === 'deepdive') setTab('ranked');
               else if (tab === 'gaps' || tab === 'controls' || tab === 'whatif') setTab('performance');
-              else if (tab === 'newelement') setTab('actions');
+              else if (tab === 'newelement') setTab('cveassess');
               else setTab('forecast');
             }}>
             ← Back
@@ -220,7 +350,7 @@ export default function App() {
             {tab === 'gaps' && 'Defense Completeness Dashboard'}
             {tab === 'whatif' && 'Position-Level What-If'}
             {tab === 'controls' && 'Safeguard Explorer'}
-            {tab === 'newelement' && 'New Element Analysis'}
+            {tab === 'newelement' && 'New Element Analysis (Other Types)'}
           </span>
         </div>
       )}
@@ -244,16 +374,10 @@ export default function App() {
       )}
 
       <main className="main-content">
-        {/* ═══ Landing ═══ */}
         {isLanding && <Landing onNavigate={setTab} />}
 
-        {/* ═══ TYPE #1 — RISK POSITION ═══ */}
         {tab === 'forecast' && (
-          <ForecastDashboard
-            onNavigate={setTab}
-            onThemeClick={navigateToTheme}
-            userThemes={userThemes}
-          />
+          <ForecastDashboard onNavigate={setTab} onThemeClick={navigateToTheme} userThemes={userThemes} />
         )}
         {tab === 'ranked' && (
           <ThemeRanked activeCustomThemes={activeCustomThemes}
@@ -265,35 +389,33 @@ export default function App() {
             onThemeClick={navigateToTheme} userThemes={userThemes} />
         )}
 
-        {/* ═══ TYPE #2 — OPERATIONAL PRIORITY ═══ */}
         {tab === 'actions' && (
-          <ActionQueue
-            onNavigate={setTab}
-            onThemeClick={navigateToTheme}
-            userThemes={userThemes}
-          />
+          <ActionQueue onNavigate={setTab} onNavigateToPerformance={navigateToPerformance}
+            onThemeClick={navigateToTheme} userThemes={userThemes} />
+        )}
+        {tab === 'vulnqueue' && (
+          <VulnerabilityQueue userCves={userCves} onNavigate={setTab} />
         )}
         {tab === 'performance' && (
-          <PerformanceReport userThemes={userThemes} />
+          <PerformanceReport userThemes={userThemes}
+            initialTarget={performanceTarget}
+            onTargetConsumed={() => setPerformanceTarget(null)} />
         )}
 
-        {/* ═══ TYPE #3 — INVESTMENT ANALYSIS ═══ */}
-        {tab === 'invest' && (
-          <InvestmentComparison userThemes={userThemes} />
-        )}
-        {tab === 'ctmatrix' && (
-          <ControlThemeMatrix userThemes={userThemes} />
-        )}
+        {tab === 'invest' && <InvestmentComparison userThemes={userThemes} />}
+        {tab === 'ctmatrix' && <ControlThemeMatrix userThemes={userThemes} />}
 
-        {/* ═══ ANALYST WORKBENCH ═══ */}
         {tab === 'portfolio' && <ScenarioPortfolio />}
         {tab === 'builder' && (
           <ThemeBuilder userThemes={userThemes}
             onSave={handleSaveUserTheme} onRemove={handleRemoveUserTheme}
             onNavigate={navigateToTheme} />
         )}
+        {tab === 'cveassess' && (
+          <VulnerabilityAssessment userCves={userCves}
+            onSaveCve={handleSaveCve} onRemoveCve={handleRemoveCve} onNavigate={setTab} />
+        )}
 
-        {/* ═══ HIDDEN / DRILL-DOWN VIEWS ═══ */}
         {tab === 'detail' && (
           <ThemeDetail themeName={selectedTheme}
             onDeepDive={() => setTab('deepdive')}
@@ -305,9 +427,7 @@ export default function App() {
           <ThemeDeepDive themeName={selectedTheme}
             userThemes={userThemes} overrides={controlOverrides} />
         )}
-        {tab === 'gaps' && (
-          <CycleGapDashboard overrides={controlOverrides} />
-        )}
+        {tab === 'gaps' && <CycleGapDashboard overrides={controlOverrides} />}
         {tab === 'whatif' && (
           <WhatIfReport overrides={controlOverrides}
             setOverrides={setControlOverrides} userThemes={userThemes} />
@@ -316,9 +436,7 @@ export default function App() {
           <ControlExplorer overrides={controlOverrides}
             setOverrides={setControlOverrides} />
         )}
-        {tab === 'newelement' && (
-          <NewElementStub onNavigate={setTab} />
-        )}
+        {tab === 'newelement' && <NewElementStub onNavigate={setTab} />}
       </main>
 
       <footer className="app-footer">

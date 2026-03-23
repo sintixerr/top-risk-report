@@ -27,9 +27,9 @@ export default function ForecastDashboard({ onNavigate, onThemeClick, userThemes
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
       <ScreenHeader
-        title="Quarterly Risk Forecast"
+        title="Quarterly Forecast Summary"
         subtitle="Your baseline measurement — 22 scenarios, quarterly re-quantification. Every number traces through structure."
-        help="This is the single source of analytical truth. All other views derive from this same data. The escalation section below identifies items that may need Type #2 (operational priority) or Type #3 (investment) action."
+        help="This is the single source of analytical truth. All other views derive from this same data. The escalation section below identifies items that may need Type #2 (work priority) or Type #3 (investment) action."
       />
 
       {/* Big numbers */}
@@ -55,7 +55,11 @@ export default function ForecastDashboard({ onNavigate, onThemeClick, userThemes
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header">
           <span className="card-header-title">Highest-exposure scenarios</span>
-          <span className="card-header-meta">{DATA.length} in baseline</span>
+          <button className="btn" onClick={() => onNavigate('portfolio')}
+            style={{ fontSize: 9, padding: '3px 10px', marginLeft: 8 }}>
+            Show All Scenarios →
+          </button>
+          <span className="card-header-meta" style={{ marginLeft: 'auto' }}>{DATA.length} in baseline</span>
         </div>
         <div style={{ padding: 0 }}>
           {[...enriched].sort((a, b) => b.rALE - a.rALE).slice(0, 8).map((s, i) => {

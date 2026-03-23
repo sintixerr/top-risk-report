@@ -40,9 +40,9 @@ export default function Landing({ onNavigate }) {
             description: 'Start here. The quarterly forecast shows where risk concentrates, what exceeds tolerance, and what changed since last quarter. This is what goes to the board.',
             output: 'Thresholds, priorities, and the decision: are current operations sufficient — or do we need to act?',
             tab: 'forecast',
-            tabLabel: 'Open Forecast →',
+            tabLabel: 'Open Forecast Summary →',
             views: [
-              { label: 'Forecast', desc: 'Big-picture numbers, threshold breaches, escalation triggers', tab: 'forecast' },
+              { label: 'Forecast Summary', desc: 'Big-picture numbers, threshold breaches, escalation triggers', tab: 'forecast' },
               { label: 'Concentrations', desc: 'Where risk accumulates — ranked by any vocabulary dimension', tab: 'ranked' },
               { label: 'Landscape', desc: 'Visual positioning — likelihood vs. impact against tolerance', tab: 'scatter' },
             ],
@@ -51,17 +51,18 @@ export default function Landing({ onNavigate }) {
           {
             number: '2',
             title: 'What do we do first?',
-            subtitle: 'Operational Priority — Optimize existing resources',
+            subtitle: 'Work Priority — Two workstreams, one framework',
             color: '#1D9E75',
             bg: 'var(--teal-bg)',
             borderColor: '#1D9E75',
-            description: 'If Type #1 says "we need to act" — try this first. The action queue ranks every possible improvement by risk-reduction-per-effort. This is what the operations team needs.',
-            output: 'A prioritized action list: what to do, in what order, with what expected return — using existing resources.',
+            description: 'If Type #1 says "we need to act" — address both strategic gaps and tactical vulnerabilities. Control Gap Management ranks capability improvements. Vulnerability Management ranks specific conditions to remediate. Both use the same structural model and efficiency metric.',
+            output: 'Two prioritized queues: strategic improvements to defensive capability, and tactical vulnerability remediations — each ranked by risk reduction per effort.',
             tab: 'actions',
-            tabLabel: 'Open Action Queue →',
+            tabLabel: 'Open Control Gaps →',
             views: [
-              { label: 'Action Queue', desc: 'Ranked actions by risk reduction per unit of effort', tab: 'actions' },
-              { label: 'Performance', desc: 'Dimension × phase matrix — the structural detail behind each action', tab: 'performance' },
+              { label: 'Control Gaps', desc: 'Strategic: improve S/E/A/Ach cycle quality at specific positions', tab: 'actions' },
+              { label: 'Vulnerabilities', desc: 'Tactical: remediate specific CVEs and conditions from the environment', tab: 'vulnqueue' },
+              { label: 'Performance', desc: 'Dimension × phase matrix — the structural detail behind both queues', tab: 'performance' },
             ],
             arrow: true,
           },
@@ -84,7 +85,6 @@ export default function Landing({ onNavigate }) {
           },
         ].map((type, idx) => (
           <div key={type.number}>
-            {/* Type card */}
             <div style={{
               background: type.bg, border: `1px solid ${type.borderColor}33`,
               borderLeft: `4px solid ${type.color}`,
@@ -146,7 +146,6 @@ export default function Landing({ onNavigate }) {
               </div>
             </div>
 
-            {/* Arrow between types */}
             {type.arrow && (
               <div style={{
                 textAlign: 'center', padding: '4px 0', fontFamily: 'var(--mono)',
@@ -162,7 +161,7 @@ export default function Landing({ onNavigate }) {
         ))}
       </div>
 
-      {/* What makes this different — collapsed version of old landing */}
+      {/* What makes this different */}
       <div style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 3,
         padding: '16px 20px', marginBottom: 20,
@@ -183,16 +182,16 @@ export default function Landing({ onNavigate }) {
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, lineHeight: 1.7, color: 'var(--text)' }}>
             <div style={{ fontWeight: 700, color: 'var(--teal)', marginBottom: 4 }}>New capabilities</div>
-            The Action Queue, Investment Comparison, and New Element Analysis are things traditional GRC
+            The Control Gap and Vulnerability queues, Investment Comparison, and CVE Assessment are things traditional GRC
             <em> cannot produce</em>. They require structural decomposition — knowing which controls reduce which
             conjunctions in which scenarios — that only the formal model provides.
           </div>
         </div>
       </div>
 
-      {/* Analyst workbench + foundation */}
+      {/* Analyst workbench + CVE assessment */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20,
+        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20,
       }}>
         <button onClick={() => onNavigate('portfolio')}
           style={{
@@ -204,14 +203,29 @@ export default function Landing({ onNavigate }) {
           onMouseOut={e => { e.currentTarget.style.background = 'var(--bg-card)'; }}
         >
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: '#8b5cf6', marginBottom: 2 }}>
-            Analyst Workbench
+            Scenario Portfolio
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            The 22 baseline scenarios and the vocabulary they're built from.
+            The 22 baseline scenarios and their risk quantities.
+          </div>
+        </button>
+        <button onClick={() => onNavigate('builder')}
+          style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 3, padding: '14px 16px', cursor: 'pointer',
+            textAlign: 'left', transition: 'all 0.12s', borderLeft: '3px solid #8b5cf6',
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = 'var(--bg-surface)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'var(--bg-card)'; }}
+        >
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: '#8b5cf6', marginBottom: 2 }}>
+            Theme Builder
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
             Build custom risk themes from structural building blocks.
           </div>
         </button>
-        <button onClick={() => onNavigate('newelement')}
+        <button onClick={() => onNavigate('cveassess')}
           style={{
             background: 'var(--bg-card)', border: '1px solid var(--border)',
             borderRadius: 3, padding: '14px 16px', cursor: 'pointer',
@@ -221,16 +235,15 @@ export default function Landing({ onNavigate }) {
           onMouseOut={e => { e.currentTarget.style.background = 'var(--bg-card)'; }}
         >
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--amber)', marginBottom: 2 }}>
-            New Element Analysis
+            CVE Assessment
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            Something new appeared — a CVE, a technique, a threat driver.
-            See how it maps to existing scenarios and what changes.
+            Map new vulnerabilities to the model. See impact, generate remediation priorities.
           </div>
         </button>
       </div>
 
-      {/* Framework connections — compact */}
+      {/* Framework connections */}
       <div style={{
         fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-dim)',
         lineHeight: 1.7, textAlign: 'center', marginBottom: 8,
@@ -238,13 +251,13 @@ export default function Landing({ onNavigate }) {
         Built on: MITRE ATT&CK (attack methods) · CIS Controls v8.1 (security practices) · NIST CSF (capability framework) · FAIR-compatible quantities
       </div>
 
-      {/* Demo data note */}
       <div style={{
         textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 9,
         color: 'var(--text-dim)', lineHeight: 1.6,
       }}>
         22 real attack scenarios with simulated financial quantities.
         30 CIS Controls v8.1 practices mapped to 10 defensive positions.
+        12 demo CVEs with simulated impact profiles.
         <br />
         <strong>Demonstration data — representative mappings, not production quality.</strong>
       </div>

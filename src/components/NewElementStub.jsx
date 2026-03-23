@@ -2,16 +2,11 @@ import { ScreenHeader } from './HelpPanel.jsx';
 import { DEFENSE_CYCLE, ATTACK, fmt } from '../terminology.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// New Element Analysis — Stub View
+// New Element Analysis — Stub View (Other Element Types)
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// This view will answer: "A new [element] has appeared — what does it mean?"
-//
-// The CVE scenario is the first implementation target. The mockup text
-// below describes how it would work for CVEs and for other element types.
-//
-// Build the CVE version on JW's say-so; the other element types
-// follow the same structural pattern.
+// CVE/Vulnerability assessment is now a full screen (VulnerabilityAssessment).
+// This stub covers the OTHER element types that follow the same pattern.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ELEMENT_TYPES = [
@@ -22,14 +17,15 @@ const ELEMENT_TYPES = [
     color: 'var(--coral)',
     example: 'CVE-2026-XXXXX — Remote code execution in widely deployed library',
     description: 'A new vulnerability is disclosed. Which of our 22 baseline scenarios does it affect? How do risk quantities change? Do priorities reorder?',
+    built: true,
     howItWorks: [
       'Select or describe the new vulnerability',
-      'System maps it to the closest Weakness Class(es) in the vocabulary (e.g., "Software & Input Handling Defects")',
+      'System maps it to the closest Weakness Class(es) in the vocabulary',
       'All scenarios containing those weakness classes are identified',
-      'For each affected scenario: the vulnerability may increase inherent frequency (more attack surface) or decrease control effectiveness (new bypass)',
-      'Risk quantities recompute across all affected scenarios',
-      'The Action Queue reorders to reflect the new priority landscape',
-      'Output: "This CVE affects N scenarios, shifts portfolio exposure by $X, and changes your top 3 priorities from [A,B,C] to [B,A,D]"',
+      'Performance penalties are applied to affected control objectives',
+      'Risk quantities recompute across all affected scenarios via the standard propagation chain',
+      'Remediation action enters the Vulnerability Management queue ranked by efficiency',
+      'Output: "This CVE affects N scenarios, shifts portfolio exposure by $X, remediation effort: Y days"',
     ],
   },
   {
@@ -119,7 +115,7 @@ export default function NewElementStub({ onNavigate }) {
       <ScreenHeader
         title="New Element Analysis"
         subtitle='Something new has appeared — a vulnerability, a technique, a threat, a system. What does it mean for your risk position? This view answers: "given this change, what moves?"'
-        help="This view implements the bespoke escalation assessment from the delivery architecture. When something new appears, the system maps it to existing vocabulary, identifies affected scenarios, recomputes risk quantities, and shows how priorities change. The CVE scenario is the first implementation; other element types follow the same structural pattern."
+        help="This view implements the bespoke escalation assessment from the delivery architecture. When something new appears, the system maps it to existing vocabulary, identifies affected scenarios, recomputes risk quantities, and shows how priorities change. CVE/Vulnerability assessment is fully built — other element types follow the same structural pattern."
       />
 
       <div style={{
@@ -133,7 +129,7 @@ export default function NewElementStub({ onNavigate }) {
         </div>
         <div style={{ fontSize: 11, lineHeight: 1.7, color: 'var(--text)' }}>
           A new element entering the environment is a <strong>trigger event</strong> — it may change your risk position
-          (Type #1), reorder your operational priorities (Type #2), or create an investment need that didn't exist before (Type #3).
+          (Type #1), reorder your work priorities (Type #2), or create an investment need that didn't exist before (Type #3).
           This view is the entry point: it answers "what changed?" so you can decide which decision type to engage.
         </div>
         <div style={{ fontSize: 11, lineHeight: 1.7, color: 'var(--text)', marginTop: 8 }}>
@@ -179,15 +175,15 @@ export default function NewElementStub({ onNavigate }) {
               <div style={{ fontSize: 13, fontWeight: 700, color: el.color, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 16 }}>{el.icon}</span>
                 {el.label}
-                {el.key === 'vulnerability' && (
+                {el.built ? (
                   <span style={{
                     fontSize: 8, padding: '2px 6px', borderRadius: 2,
                     background: 'var(--teal-bg)', color: 'var(--teal-dark)', fontWeight: 700,
-                    letterSpacing: '1px', textTransform: 'uppercase',
-                  }}>
-                    First to build
+                    letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer',
+                  }} onClick={() => onNavigate('cveassess')}>
+                    Built → Open
                   </span>
-                )}
+                ) : null}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5, maxWidth: 600 }}>
                 {el.description}
@@ -227,19 +223,19 @@ export default function NewElementStub({ onNavigate }) {
 
       {/* Back navigation */}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <button className="btn" onClick={() => onNavigate('actions')}
+        <button className="btn" onClick={() => onNavigate('cveassess')}
           style={{ padding: '10px 16px', textAlign: 'left', flex: 1 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: '#1D9E75' }}>
-            ← Action Queue
+          <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--amber)' }}>
+            ← CVE Assessment
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-            Current prioritized actions with existing resources
+            Map vulnerabilities to the model — the built version of this concept
           </div>
         </button>
         <button className="btn" onClick={() => onNavigate('forecast')}
           style={{ padding: '10px 16px', textAlign: 'left', flex: 1 }}>
           <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--navy)' }}>
-            ← Forecast Dashboard
+            ← Forecast Summary
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
             Quarterly baseline — the big picture
@@ -251,8 +247,8 @@ export default function NewElementStub({ onNavigate }) {
         marginTop: 20, fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-dim)',
         fontStyle: 'italic', lineHeight: 1.6, textAlign: 'center',
       }}>
-        This view is a design preview — the CVE analysis will be built first, followed by other element types.
-        The structural pattern is the same for all: map new element → identify affected scenarios → recompute quantities → show impact.
+        CVE/Vulnerability assessment is fully built — see the CVE Assessment screen in the Analyst Workbench.
+        Other element types follow the same structural pattern and will be built in future sessions.
       </div>
     </div>
   );

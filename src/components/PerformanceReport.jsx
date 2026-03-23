@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ScreenHeader, Legend } from './HelpPanel.jsx';
 import { DEFENSE_CYCLE, ATTACK, QUANTITIES, fmt } from '../terminology.js';
 import { OBJECTIVES, PHASES, STAGES } from '../controlModel.js';
@@ -453,7 +453,7 @@ function GroupCard({ group, cellOverrides, onCellClick, selectedCell, rowsExpand
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 
-export default function PerformanceReport({ userThemes = [] }) {
+export default function PerformanceReport({ userThemes = [], initialTarget = null, onTargetConsumed }) {
   const [grouping, setGrouping] = useState('portfolio');
   const [selectedItems, setSelectedItems] = useState(['all']);
   const [riskOutput, setRiskOutput] = useState('rALE');
@@ -461,6 +461,36 @@ export default function PerformanceReport({ userThemes = [] }) {
   const [cellOverrides, setCellOverrides] = useState({});
   const [selectedCell, setSelectedCell] = useState(null);
   const [acceptableThreshold, setAcceptableThreshold] = useState(50);
+
+  // When arriving from Action Queue (or other views) with a specific cell target,
+  // pre-configure grouping and highlight the right cell
+  useEffect(() => {
+    if (!initialTarget) return;
+    const { objectiveId, dimKey, phase } = initialTarget;
+    if (!objectiveId) return;
+
+    // Switch to "By Control Objective" grouping with just this objective selected
+    setGrouping('objective');
+    setSelectedItems([objectiveId]);
+    setDisplayMode('full');
+
+    // Pre-select the cell so the what-if slider is ready
+    const maxPerf = MAX_PERFORMANCE[objectiveId] || 85;
+    const currentValue = getCellValue(objectiveId, dimKey, phase, cellOverrides);
+    setSelectedCell({
+      objectiveId,
+      objectiveIds: [objectiveId],
+      dimKey,
+      phase,
+      overrideKey: `${objectiveId}:${dimKey}:${phase}`,
+      groupKey: objectiveId,
+      currentValue,
+      maxPerf,
+    });
+
+    // Clear the target so it doesn't re-trigger
+    if (onTargetConsumed) onTargetConsumed();
+  }, [initialTarget]);
 
   const mode = DISPLAY_MODES.find(m => m.key === displayMode) || DISPLAY_MODES[1];
 
