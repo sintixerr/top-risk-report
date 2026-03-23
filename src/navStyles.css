@@ -1,0 +1,100 @@
+/* ─── Navigation — 3-layer groups ─── */
+.nav-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.nav-home {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-muted);
+  border-radius: 3px;
+  transition: all 0.12s;
+  margin-right: 4px;
+}
+
+.nav-home:hover { background: var(--bg-surface); color: var(--navy); }
+.nav-home-active { background: var(--navy); color: #e8e4d9; border-color: var(--navy); }
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: 6px;
+}
+
+.nav-group-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  padding-left: 2px;
+}
+
+.nav-group-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.nav-tab {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-radius: 2px;
+  transition: all 0.12s;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.nav-tab:hover { background: var(--bg-surface); }
+
+.nav-tab-active {
+  color: #e8e4d9;
+}
+
+.nav-theme-select {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* ─── Baseline indicator ─── */
+.baseline-indicator {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  padding: 4px 0 12px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.baseline-sep {
+  color: var(--border);
+  margin: 0 2px;
+}
+
+/* ─── Responsive adjustments ─── */
+@media (max-width: 900px) {
+  .nav-bar { gap: 6px; }
+  .nav-group { margin-right: 2px; }
+  .nav-tab { padding: 5px 8px; font-size: 9px; }
+  .nav-group-label { font-size: 7px; }
+}
